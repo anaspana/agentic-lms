@@ -1,4 +1,4 @@
-"""Demo podaci: python -m app.seed  (briše i ponovo pravi bazu)."""
+"""Demo data: python -m app.seed  (drops and recreates the database)."""
 from datetime import timedelta
 
 from .db import Base, SessionLocal, engine, utcnow

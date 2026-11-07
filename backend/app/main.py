@@ -100,7 +100,7 @@ def course_detail(course_id: int, user: User = Depends(current_user), db: Sessio
 
 @app.get("/api/forms")
 def list_forms(user: User = Depends(current_user)):
-    """Mašinski čitljiv opis svih formi dostupnih ulozi korisnika (izvor za MCP alate)."""
+    """Machine-readable description of all forms available to the user's role (source for MCP tools)."""
     return [f.describe() for f in FORMS.values() if f.role == user.role]
 
 
@@ -126,7 +126,7 @@ def course_state(course_id: int, user: User = Depends(current_user), db: Session
 
 @app.get("/api/courses/{course_id}/next")
 def next_action(course_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    """Preporuka po referentnom pravilu (baseline). LLM agent dolazi kasnije."""
+    """Recommendation by the reference (baseline) rule. The LLM agent comes later."""
     rec = recommend_next(build_state(db, user.id, course_id))
     spec = FORMS.get(rec["activity"]) if rec["activity"] else None
     rec["mutating"] = spec.mutating if spec else False

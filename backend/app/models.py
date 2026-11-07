@@ -11,7 +11,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     email: Mapped[str] = mapped_column(String(200), unique=True)
-    password: Mapped[str] = mapped_column(String(200))  # prototip: bez hesiranja
+    password: Mapped[str] = mapped_column(String(200))  # prototype: no password hashing
     role: Mapped[str] = mapped_column(String(20))  # "student" | "teacher"
     token: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
@@ -78,8 +78,8 @@ class Grade(Base):
 
 
 class Event(Base):
-    """Event log: jedna vrsta = jedna poslovna aktivnost (OCEL-kompatibilno:
-    jedan događaj, više objekata preko object_type/object_id + course_id)."""
+    """Event log: one row = one business activity (OCEL-compatible:
+    one event, multiple objects via object_type/object_id + course_id)."""
 
     __tablename__ = "events"
     id: Mapped[int] = mapped_column(primary_key=True)

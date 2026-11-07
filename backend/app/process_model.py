@@ -1,7 +1,7 @@
-"""Model procesa: izvođenje stanja studenta iz event loga + stanja kursa,
-provera preduslova i referentna (baseline) preporuka.
+"""Process model: deriving a student's state from the event log + course state,
+precondition checks and the reference (baseline) recommendation.
 
-Vidi docs/process_model.md.
+See docs/process_model.md.
 """
 from dataclasses import dataclass, field
 
@@ -27,8 +27,8 @@ class StudentState:
     course_id: int
     enrolled: bool = False
     unread_announcements: list[int] = field(default_factory=list)
-    pending_materials: list[int] = field(default_factory=list)  # po lesson_no
-    open_assignments: list[int] = field(default_factory=list)  # po roku
+    pending_materials: list[int] = field(default_factory=list)  # ordered by lesson_no
+    open_assignments: list[int] = field(default_factory=list)  # ordered by due date
     unviewed_grades: list[int] = field(default_factory=list)  # assignment_id
 
     def to_dict(self) -> dict:
@@ -43,7 +43,7 @@ def _done_objects(db: Session, user_id: int, activity: str) -> set[int]:
 
 
 def build_state(db: Session, user_id: int, course_id: int) -> StudentState:
-    """Gde se student nalazi: izvodi se iz event loga i trenutnog stanja kursa."""
+    """Where the student is: derived from the event log and the current course state."""
     st = StudentState(user_id=user_id, course_id=course_id)
     st.enrolled = (
         db.execute(
@@ -95,7 +95,7 @@ def build_state(db: Session, user_id: int, course_id: int) -> StudentState:
 
 
 def check_allowed(db: Session, activity: str, user, params: dict) -> tuple[bool, str]:
-    """Preduslovi aktivnosti (tabela u docs/process_model.md)."""
+    """Activity preconditions (see the table in docs/process_model.md)."""
     now = utcnow()
     if user.role == "teacher":
         if activity not in ("post_announcement", "post_material", "post_grade"):
@@ -126,7 +126,7 @@ def check_allowed(db: Session, activity: str, user, params: dict) -> tuple[bool,
             return False, "Već si upisan na ovaj kurs."
         return True, "ok"
 
-    # sve ostalo traži upis; kurs se izvodi iz objekta
+    # everything else requires enrollment; the course is derived from the object
     obj_course = _course_of(db, activity, params)
     if obj_course is None:
         return False, "Objekat ne postoji."
@@ -162,7 +162,7 @@ def _course_of(db: Session, activity: str, params: dict) -> int | None:
 
 
 def recommend_next(st: StudentState) -> dict:
-    """Referentno (baseline) pravilo preporuke, prioritet kao u docs/process_model.md."""
+    """Reference (baseline) recommendation rule, priority as in docs/process_model.md."""
     if not st.enrolled:
         return {"activity": "enroll_course", "params": {"course_id": st.course_id},
                 "reason": "Nisi upisan na kurs."}

@@ -1,8 +1,8 @@
-"""Registar formi: JEDAN opis forme (naziv, namena, polja) služi kao
-  (1) validacija zahteva,
-  (2) MCP alat (input schema) — vidi GET /api/forms,
-  (3) uputstvo za vidljivu automatizaciju na frontu (polja koja se popunjavaju).
-Nova forma = nova stavka u FORMS, bez izmene agenta.
+"""Form registry: ONE form description (name, purpose, fields) serves as
+  (1) request validation,
+  (2) an MCP tool (input schema) — see GET /api/forms,
+  (3) instructions for visible front-end automation (the fields to fill in).
+A new form = a new entry in FORMS, no agent changes.
 """
 from dataclasses import dataclass
 from datetime import datetime
@@ -33,17 +33,17 @@ class FormField:
 
 @dataclass
 class FormSpec:
-    name: str  # = naziv aktivnosti = naziv MCP alata
+    name: str  # = activity name = MCP tool name
     title: str
     purpose: str
     role: str  # "student" | "teacher"
-    mutating: bool  # true -> agent traži potvrdu korisnika
-    route: str  # putanja stranice na frontu na kojoj se forma nalazi
+    mutating: bool  # true -> the agent asks for user confirmation
+    route: str  # front-end page path where the form lives
     fields: list[FormField]
     handler: Callable[[Session, object, dict], dict]
 
     def describe(self) -> dict:
-        """Mašinski čitljiv opis (ujedno JSON Schema za MCP alat)."""
+        """Machine-readable description (also the JSON Schema for the MCP tool)."""
         return {
             "name": self.name,
             "title": self.title,
@@ -61,7 +61,7 @@ class FormSpec:
         }
 
 
-# ---- handleri: vraćaju {"course_id", "object_type", "object_id", "result"} ----
+# ---- handlers: return {"course_id", "object_type", "object_id", "result"} ----
 
 def _enroll(db, user, p):
     db.add(Enrollment(user_id=user.id, course_id=p["course_id"]))
@@ -183,8 +183,8 @@ def _coerce(spec: FormSpec, params: dict) -> dict:
 
 
 def execute_form(db: Session, user, name: str, params: dict, actor: str = "user") -> dict:
-    """Jedina ulazna tačka za izvršenje akcije: validacija -> preduslovi procesa ->
-    handler -> upis u event log. Isto koristi UI (actor=user) i agent (actor=agent)."""
+    """The single entry point for executing an action: validation -> process preconditions ->
+    handler -> event log entry. Used by both the UI (actor=user) and the agent (actor=agent)."""
     spec = FORMS.get(name)
     if spec is None:
         raise FormError(404, "Nepoznata forma.")

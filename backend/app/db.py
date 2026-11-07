@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# Za PostgreSQL postaviti npr.: DATABASE_URL=postgresql+psycopg://user:pass@localhost/lms
+# For PostgreSQL set e.g.: DATABASE_URL=postgresql+psycopg://user:pass@localhost/lms
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./lms.db")
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 
 
 def utcnow() -> datetime:
-    """Naivno UTC vreme (isto ponašanje na SQLite i PostgreSQL)."""
+    """Naive UTC time (same behavior on SQLite and PostgreSQL)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 

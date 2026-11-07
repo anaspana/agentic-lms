@@ -1,41 +1,41 @@
-# Agentski LMS (Projekat 10)
+# Agentic LMS (Project 10)
 
-Prototip LMS-a u kome AI agent preporučuje i (uz potvrdu) izvršava sledeću akciju studenta.
+A prototype Learning Management System in which an AI agent recommends and, with the user's confirmation, executes the student's next action.
 
-## Struktura
+## Structure
 
-- `docs/process_model.md` – model procesa (stanja, aktivnosti, preduslovi, pravilo preporuke)
-- `backend/app/process_model.py` – izvođenje stanja iz event loga + preduslovi + baseline preporuka
-- `backend/app/forms.py` – **registar formi**: jedan opis forme = validacija + MCP alat + uputstvo za front automatizaciju
-- `backend/app/main.py` – FastAPI (login, kursevi, forme, event log, preporuka)
-- `backend/app/seed.py` – demo podaci
-- `backend/tests/test_smoke.py` – test celog toka
+- `docs/process_model.md` – process model (states, activities, preconditions, recommendation rule)
+- `backend/app/process_model.py` – state derivation from the event log, preconditions, baseline recommendation
+- `backend/app/forms.py` – **form registry**: one form description = validation + MCP tool + instructions for front-end automation
+- `backend/app/main.py` – FastAPI app (login, courses, forms, event log, recommendation)
+- `backend/app/seed.py` – demo data
+- `backend/tests/test_smoke.py` – end-to-end flow test
 
-## Pokretanje
+## Running
 
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m app.seed            # demo podaci (ana@lms.test / nastavnik@lms.test, lozinka: test)
+python -m app.seed            # demo data (ana@lms.test / nastavnik@lms.test, password: test)
 uvicorn app.main:app --reload # http://localhost:8000/docs
 pytest
 ```
 
-Za PostgreSQL: `DATABASE_URL=postgresql+psycopg://user:pass@localhost/lms` (+ `pip install psycopg[binary]`).
+For PostgreSQL: `DATABASE_URL=postgresql+psycopg://user:pass@localhost/lms` (and `pip install psycopg[binary]`).
 
-## Ključni endpointi
+## Key endpoints
 
-| Endpoint | Namena |
+| Endpoint | Purpose |
 |---|---|
-| `GET /api/forms` | mašinski čitljiv opis formi (izvor za MCP alate) |
-| `POST /api/forms/{name}` | izvršenje forme; `actor` = `user` ili `agent`; proverava preduslove procesa |
-| `GET /api/courses/{id}/state` | izvedeno stanje studenta na kursu |
-| `GET /api/courses/{id}/next` | preporuka (za sada baseline pravilo, kasnije LLM agent) |
-| `GET /api/events` | event log korisnika |
+| `GET /api/forms` | machine-readable description of all forms (source for MCP tools) |
+| `POST /api/forms/{name}` | execute a form; `actor` is `user` or `agent`; process preconditions are enforced |
+| `GET /api/courses/{id}/state` | derived state of the student in a course |
+| `GET /api/courses/{id}/next` | recommendation (currently the baseline rule, later the LLM agent) |
+| `GET /api/events` | the user's event log |
 
-## Sledeći koraci
+## Next steps
 
-1. Generator sintetičkog event loga sa labelama (+ zamke)
-2. MCP server nad `FORMS` (alati se generišu iz `describe()`)
-3. LLM agent (varijante 1/2/3 za evaluaciju)
-4. React front sa engine-om za vidljivo popunjavanje formi
+1. Synthetic event log generator with labels (and trap scenarios)
+2. MCP server on top of `FORMS` (tools generated from `describe()`)
+3. LLM agent (variants 1/2/3 for evaluation)
+4. React front end with an engine that visibly fills in forms
