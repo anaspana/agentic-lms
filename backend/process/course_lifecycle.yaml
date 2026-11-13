@@ -1,0 +1,138 @@
+# Student lifecycle in a course.
+#
+# This file is the process model. The backend uses it to check preconditions
+# and to make the baseline recommendation, and the agent will read it to know
+# which steps are allowed. Condition names refer to checks implemented in
+# app/process_model.py (CONDITIONS). The order in `requires` matters: checks run
+# top to bottom and the first one that fails is reported.
+#
+# User-facing texts (fail, reason) are in Serbian, everything else in English.
+
+process: course_lifecycle
+version: 1
+
+# Business objects an activity can work on, and the form field that identifies them.
+objects:
+  course: { param: course_id }
+  announcement: { param: announcement_id }
+  material: { param: material_id }
+  assignment: { param: assignment_id }
+
+# Derived student state for one course, computed from the event log and the course content.
+state:
+  enrolled: Student has enrolled in the course.
+  unread_announcements: Posted announcements with no read_announcement event, oldest first.
+  pending_materials: Published materials with no download_material event, lowest lesson number first.
+  open_assignments: Assignments with a future deadline and no submission, nearest deadline first.
+  unviewed_grades: Posted grades with no view_grade event.
+
+conditions:
+  course_exists:
+    description: The course exists.
+    fail: Kurs ne postoji.
+  object_exists:
+    description: The object the activity works on exists.
+    fail: Objekat ne postoji.
+  enrolled:
+    description: Student is enrolled in the course.
+    fail: Prvo se upiši na kurs.
+  not_enrolled:
+    description: Student is not enrolled in the course yet.
+    fail: Već si upisan na ovaj kurs.
+  deadline_open:
+    description: The assignment deadline has not passed.
+    fail: Rok za predaju je istekao.
+  not_submitted:
+    description: Student has not submitted this assignment yet.
+    fail: Zadatak je već predat.
+  grade_exists:
+    description: A grade for this assignment has been posted for the student.
+    fail: Ocena još nije objavljena.
+  is_course_teacher:
+    description: The user teaches this course.
+    fail: Nisi nastavnik ovog kursa.
+  assignment_in_course:
+    description: The assignment belongs to this course.
+    fail: Zadatak ne pripada ovom kursu.
+  student_submitted:
+    description: The student has submitted the assignment.
+    fail: Student nije predao zadatak.
+
+activities:
+  enroll_course:
+    actor: student
+    mutating: true
+    object: course
+    description: Enroll in a course.
+    requires: [course_exists, not_enrolled]
+
+  read_announcement:
+    actor: student
+    mutating: false
+    object: announcement
+    description: Open an announcement and mark it as read.
+    requires: [object_exists, enrolled]
+
+  download_material:
+    actor: student
+    mutating: false
+    object: material
+    description: Open a lesson material and download it.
+    requires: [object_exists, enrolled]
+
+  submit_assignment:
+    actor: student
+    mutating: true
+    object: assignment
+    description: Submit a solution before the deadline.
+    requires: [object_exists, enrolled, deadline_open, not_submitted]
+
+  view_grade:
+    actor: student
+    mutating: false
+    object: assignment
+    description: View the grade for an assignment.
+    requires: [object_exists, enrolled, grade_exists]
+
+  post_announcement:
+    actor: teacher
+    mutating: true
+    object: course
+    description: Post an announcement in the course.
+    requires: [course_exists, is_course_teacher]
+
+  post_material:
+    actor: teacher
+    mutating: true
+    object: course
+    description: Publish material for a lesson.
+    requires: [course_exists, is_course_teacher]
+
+  post_grade:
+    actor: teacher
+    mutating: true
+    object: course
+    description: Grade a submitted assignment.
+    requires: [course_exists, is_course_teacher, assignment_in_course, student_submitted]
+
+# Baseline recommendation. Rules are tried in order and the first match wins.
+#   pick_from: a state list; the first item becomes the activity's object
+#   unless:    a state flag; the rule fires when the flag is false (object is the course)
+recommendation:
+  - activity: enroll_course
+    unless: enrolled
+    reason: Nisi upisan na kurs.
+  - activity: read_announcement
+    pick_from: unread_announcements
+    reason: Postoji nepročitano obaveštenje.
+  - activity: download_material
+    pick_from: pending_materials
+    reason: Nastavnik je objavio materijal koji nisi preuzela.
+  - activity: submit_assignment
+    pick_from: open_assignments
+    reason: Imaš otvoren zadatak sa rokom koji ističe.
+  - activity: view_grade
+    pick_from: unviewed_grades
+    reason: Objavljena je ocena koju nisi pogledala.
+
+idle_reason: Nema ništa novo, sve je ažurno.
