@@ -1,8 +1,9 @@
-"""Form registry: ONE form description (name, purpose, fields) serves as
-  (1) request validation,
-  (2) an MCP tool (input schema) — see GET /api/forms,
-  (3) instructions for visible front-end automation (the fields to fill in).
-A new form = a new entry in FORMS, no agent changes.
+"""Form registry.
+
+One description per form (name, purpose, fields) is used for request
+validation, as the MCP tool schema (GET /api/forms) and later as instructions
+for the front end when the agent fills a form in. Who may use a form and
+whether it changes state comes from the process model, not from here.
 """
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,7 +21,7 @@ from .models import (
     Material,
     Submission,
 )
-from .process_model import check_allowed
+from .process_model import MODEL, check_allowed
 
 
 @dataclass
@@ -33,14 +34,21 @@ class FormField:
 
 @dataclass
 class FormSpec:
-    name: str  # = activity name = MCP tool name
+    name: str  # same as the activity name in the process model and the MCP tool name
     title: str
     purpose: str
-    role: str  # "student" | "teacher"
-    mutating: bool  # true -> the agent asks for user confirmation
-    route: str  # front-end page path where the form lives
+    route: str  # front-end page where the form lives
     fields: list[FormField]
     handler: Callable[[Session, object, dict], dict]
+
+    @property
+    def role(self) -> str:
+        return MODEL["activities"][self.name]["actor"]
+
+    @property
+    def mutating(self) -> bool:
+        # true means the agent has to ask the user before running it
+        return MODEL["activities"][self.name]["mutating"]
 
     def describe(self) -> dict:
         """Machine-readable description (also the JSON Schema for the MCP tool)."""
@@ -126,40 +134,45 @@ FORMS: dict[str, FormSpec] = {
     s.name: s
     for s in [
         FormSpec("enroll_course", "Upis na kurs", "Upisuje studenta na izabrani kurs.",
-                 "student", True, "/courses/{course_id}",
+                 "/courses/{course_id}",
                  [F("course_id", "integer", "ID kursa")], _enroll),
         FormSpec("read_announcement", "Čitanje obaveštenja",
                  "Otvara obaveštenje na kursu i beleži da je pročitano.",
-                 "student", False, "/announcements/{announcement_id}",
+                 "/announcements/{announcement_id}",
                  [F("announcement_id", "integer", "ID obaveštenja")], _read_announcement),
         FormSpec("download_material", "Preuzimanje materijala",
                  "Otvara stranicu materijala lekcije i preuzima ga.",
-                 "student", False, "/materials/{material_id}",
+                 "/materials/{material_id}",
                  [F("material_id", "integer", "ID materijala")], _download_material),
         FormSpec("submit_assignment", "Predaja zadatka",
                  "Predaje rešenje zadatka pre isteka roka.",
-                 "student", True, "/assignments/{assignment_id}",
+                 "/assignments/{assignment_id}",
                  [F("assignment_id", "integer", "ID zadatka"),
                   F("text", "string", "Tekst rešenja", required=False)], _submit_assignment),
         FormSpec("view_grade", "Pregled ocene", "Prikazuje ocenu za zadatak.",
-                 "student", False, "/assignments/{assignment_id}/grade",
+                 "/assignments/{assignment_id}/grade",
                  [F("assignment_id", "integer", "ID zadatka")], _view_grade),
         FormSpec("post_announcement", "Objava obaveštenja", "Nastavnik objavljuje obaveštenje na kursu.",
-                 "teacher", True, "/teach/{course_id}/announcements/new",
+                 "/teach/{course_id}/announcements/new",
                  [F("course_id", "integer", "ID kursa"), F("title", "string", "Naslov"),
                   F("body", "string", "Tekst", required=False)], _post_announcement),
         FormSpec("post_material", "Objava materijala", "Nastavnik postavlja materijal za lekciju.",
-                 "teacher", True, "/teach/{course_id}/materials/new",
+                 "/teach/{course_id}/materials/new",
                  [F("course_id", "integer", "ID kursa"), F("lesson_no", "integer", "Redni broj lekcije"),
                   F("title", "string", "Naslov"), F("content", "string", "Sadržaj", required=False)],
                  _post_material),
         FormSpec("post_grade", "Unos ocene", "Nastavnik ocenjuje predat zadatak studenta.",
-                 "teacher", True, "/teach/{course_id}/grades/new",
+                 "/teach/{course_id}/grades/new",
                  [F("course_id", "integer", "ID kursa"), F("assignment_id", "integer", "ID zadatka"),
                   F("student_id", "integer", "ID studenta"), F("value", "integer", "Ocena (poeni)")],
                  _post_grade),
     ]
 }
+
+# Every activity in the process model needs a form and the other way round.
+_out_of_sync = set(MODEL["activities"]) ^ set(FORMS)
+if _out_of_sync:
+    raise RuntimeError(f"Forms and process model are out of sync: {sorted(_out_of_sync)}")
 
 
 class FormError(Exception):
