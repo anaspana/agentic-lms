@@ -18,7 +18,7 @@ from .models import (
     Material,
     User,
 )
-from .process_model import build_state, recommend_next
+from .process_model import MODEL, build_state, recommend_next
 
 Base.metadata.create_all(engine)
 
@@ -102,6 +102,12 @@ def course_detail(course_id: int, user: User = Depends(current_user), db: Sessio
 def list_forms(user: User = Depends(current_user)):
     """Machine-readable description of all forms available to the user's role (source for MCP tools)."""
     return [f.describe() for f in FORMS.values() if f.role == user.role]
+
+
+@app.get("/api/process")
+def process_model():
+    """The process model as JSON, for the agent and for anyone inspecting the system."""
+    return MODEL
 
 
 class FormIn(BaseModel):
